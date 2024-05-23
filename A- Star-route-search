@@ -1,0 +1,342 @@
+import tkinter as tk
+import time
+import ucs
+
+class Graph:
+    adjacency_list = {
+        'A': [('B', 50), ('C', 55), ('D', 45), ('E', 30)],
+        'B': [('A', 50), ('C', 60), ('G', 127), ('F', 62)],
+        'C': [('A', 55), ('B', 60), ('D', 43), ('G', 250), ('H', 32), ('I', 170)],
+        'D': [('A', 45), ('C', 43), ('E', 90), ('I', 85), ('J', 40), ('K', 15)],
+        'E': [('A', 30), ('D', 90), ('K', 230)],
+        'F': [('B', 62), ('G', 25), ('L', 136)],
+        'G': [('B', 127), ('C', 250), ('F', 25), ('H', 32), ('I', 30), ('L', 58), ('M', 220)],
+        'H': [('C', 32), ('G', 32), ('I', 120), ('L', 61), ('M', 88), ('N', 20)],
+        'I': [('C', 170), ('D', 85), ('G', 30), ('H', 120), ('J', 61), ('N', 12), ('O', 23)],
+        'J': [('D', 40), ('I', 61), ('K', 32), ('O', 144), ('P', 147), ('S', 110)],
+        'K': [('D', 15), ('E', 230), ('J', 32), ('P', 130)],
+        'L': [('F', 136), ('G', 58), ('H', 61), ('M', 144), ('Q', 161)],
+        'M': [('G', 220), ('H', 88), ('L', 144), ('N', 24), ('Q', 71), ('R', 92)],
+        'N': [('H', 20), ('I', 12), ('M', 24), ('O', 40), ('R', 134), ('T', 156)],
+        'O': [('I', 23), ('J', 144), ('N', 40), ('P', 77), ('S', 16), ('T', 17)],
+        'P': [('J', 147), ('K', 130), ('O', 77), ('S', 89)],
+        'Q': [('L', 161), ('M', 71), ('R', 26)],
+        'R': [('M', 92), ('N', 134), ('Q', 26), ('T', 16)],
+        'S': [('J', 110), ('O', 16), ('P', 89), ('T', 72)],
+        'T': [('N', 156), ('O', 17), ('R', 16), ('S', 72)]        
+    }
+    
+    Heuristic_Of_Goal = {}
+
+    def __init__(self, Heuristic_Name):
+        cons = ucs.Heuristic(Heuristic_Name)
+        self.Heuristic_Of_Goal = cons.Heuristic_Name_Dict
+
+    def get_neighbors(self, v):
+        return self.adjacency_list[v]
+
+    # heuristic function with equal values for all nodes
+    def h(self, Heuristic_Name, n):
+        
+        return Heuristic_Name[n]
+
+    def a_star_algorithm(self, start_node, stop_node):
+        # open_list is a list of nodes which have been visited, but who's neighbors
+        # haven't all been inspected, starts off with the start node
+        # closed_list is a list of nodes which have been visited
+        # and who's neighbors have been inspected
+        open_list = set([start_node])
+        closed_list = set([])
+
+        # g contains current distances from start_node to all other nodes
+        # the default value (if it's not found in the map) is +infinity
+        g = {}
+        cost = 0
+
+        g[start_node] = 0
+
+        # parents contains an adjacency map of all nodes
+        parents = {}
+        parents[start_node] = start_node
+
+        while len(open_list) > 0:
+            n = None
+
+            # find a node with the lowest value of f() - evaluation function
+            for v in open_list:
+                if n == None or g[v] + self.h(self.Heuristic_Of_Goal, v) < g[n] + self.h(self.Heuristic_Of_Goal, n):
+                    n = v
+            
+            #cost = cost + g[v]
+
+            if n == None:
+                print('Path does not exist!')
+                return None
+
+            # if the current node is the stop_node
+            # then we begin reconstructin the path from it to the start_node
+            if n == stop_node:
+                reconst_path = []
+
+                while parents[n] != n:
+                    reconst_path.append(n)
+                    n = parents[n]
+
+                reconst_path.append(start_node)
+
+                reconst_path.reverse()
+
+                print('Path found: {}'.format(reconst_path))
+                print('cost: ', cost)
+                return reconst_path, g[stop_node]
+
+            # for all neighbors of the current node do
+            for (m, weight) in self.get_neighbors(n):
+                # if the current node isn't in both open_list and closed_list
+                # add it to open_list and note n as it's parent
+                if m not in open_list and m not in closed_list:
+                    open_list.add(m)
+                    parents[m] = n
+                    g[m] = g[n] + weight
+
+                # otherwise, check if it's quicker to first visit n, then m
+                # and if it is, update parent data and g data
+                # and if the node was in the closed_list, move it to open_list
+                else:
+                    if g[m] > g[n] + weight:
+                        g[m] = g[n] + weight
+                        parents[m] = n
+
+                        if m in closed_list:
+                            closed_list.remove(m)
+                            open_list.add(m)
+
+            # remove n from the open_list, and add it to closed_list
+            # because all of his neighbors were inspected
+            open_list.remove(n)
+            closed_list.add(n)
+
+        print('Path does not exist!')
+        return None
+    
+#graph1 = Graph(Graph.adjacency_list)
+#graph1.a_star_algorithm('S', 'G')    
+
+class App:
+    def __init__(self, master):
+        self.master = master
+        self.canvas = tk.Canvas(master, width=800, height=600, background='white')
+        self.canvas.pack()
+        self.highlight_color = 'red'
+        self.connection_color = 'black'
+        self.i = 0
+        self.path = {}
+        self.half_time = 0.5
+        self.cost = 0
+        self.text_cost = None
+        self.nodes_coords = self.draw_map()
+        self.node_and_childs()
+        
+
+    def draw_map(self):
+        # Draw your map here (lines, nodes, etc.)
+        # For simplicity, let's draw some nodes as circles
+        nodes_coords = {
+            'A': (50, 400),
+            'B': (100, 500),
+            'C': (150, 420),
+            'D': (200, 300),
+            'E': (150, 200),
+            'F': (270, 550),
+            'G': (270, 450),
+            'H': (350, 350),
+            'I': (350, 275),
+            'J': (400, 200),
+            'K': (370, 120),
+            'L': (420, 550),
+            'M': (450, 370),
+            'N': (550, 300),
+            'O': (525, 230),
+            'P': (510, 85),
+            'Q': (550, 500),
+            'R': (620, 400),
+            'S': (620, 200),
+            'T': (700, 300),
+        }
+        self.nodes = {}
+        for node, (x, y) in nodes_coords.items():
+            self.nodes[node] = self.canvas.create_oval(x-10, y-10, x+10, y+10, fill='white', outline='black')
+            self.canvas.create_text(x, y+20, text=node)
+        
+        return nodes_coords    
+            
+
+    def highlight_path(self, path, color, stime):
+        for i in range(len(path)-1):
+            time.sleep(stime)  # Add a delay for visualization
+            start_node = path[i]
+            end_node = path[i+1]
+            start_coords = self.canvas.coords(self.nodes[start_node])
+            end_coords = self.canvas.coords(self.nodes[end_node])
+            self.canvas.create_line(start_coords[0]+10, start_coords[1]+10, end_coords[0]+10, end_coords[1]+10, fill=color, width=2)
+            self.master.update()
+        self.cost_text = f"The Cost to this given path is {self.cost}" 
+        if self.text_cost:
+            self.canvas.delete(self.text_cost)  # Remove old text   
+        self.text_cost = self.canvas.create_text(400, 30, text=self.cost_text, fill='green')
+        self.master.update()    
+            
+    def node_and_childs(self):
+        keys = ucs.Heuristic.graph.keys()
+        for key in keys:
+            key_neighbours_list = ucs.Heuristic.graph[key]
+            for key_neighbour, cost in key_neighbours_list:
+                start_node = key
+                end_node = key_neighbour
+                start_coords = self.canvas.coords(self.nodes[start_node])
+                end_coords = self.canvas.coords(self.nodes[end_node])
+                self.canvas.create_line(start_coords[0]+10, start_coords[1]+10, end_coords[0]+10, end_coords[1]+10, fill=self.connection_color, width=2)
+                #self.canvas.create_text(start_coords[0]-start_coords[1], end_coords[0]-end_coords[1], text=cost)
+                mid_x = (start_coords[0] + end_coords[0]) / 2
+                mid_y = (start_coords[1] + end_coords[1]) / 2
+                self.canvas.create_text(mid_x, mid_y, text=str(cost), fill='blue')
+                self.master.update()
+     
+
+    def run_algorithm(self, start_node, stop_node):
+        if self.i == 0:   
+            self.graph = Graph(stop_node)
+            self.path, self.cost = self.graph.a_star_algorithm(start_node, stop_node)
+            if self.path:
+                self.highlight_path(self.path, self.highlight_color, self.half_time)
+            
+            self.i = self.i + 1
+        
+        else:
+            self.highlight_path(self.path, self.connection_color, 0)
+            self.path, self.cost  = self.graph.a_star_algorithm(start_node, stop_node)
+            if self.path:
+                self.highlight_path(self.path, self.highlight_color, self.half_time)        
+                
+
+if __name__ == "__main__":
+    root = tk.Tk()
+    
+    # Add a label
+    label_start = tk.Label(root, text="From",  font=("Arial", 16, "bold"))
+    label_start.pack()
+    # Add a textbox for route-start
+    textbox_start = tk.Entry(root, width=20)
+    textbox_start.pack()
+    # Add a label 
+    label_end = tk.Label(root, text="End",  font=("Arial", 16, "bold"))
+    label_end.pack()
+    # Add a textbox for route-end
+    textbox_end = tk.Entry(root, width=20)
+    textbox_end.pack()
+    # Add a button to trigger the algorithm and visualization
+    button = tk.Button(root, text="Find Path", command=lambda: app.run_algorithm(textbox_start.get(), textbox_end.get()))
+    button.pack()
+       
+    app = App(root)
+    
+    root.mainloop()
+
+# UCS Module use for finding the least cost
+
+from queue import PriorityQueue
+
+class Heuristic:
+    # Define the graph as an adjacency list
+    graph = {
+        'A': [('B', 50), ('C', 55), ('D', 45), ('E', 30)],
+        'B': [('A', 50), ('C', 60), ('G', 127), ('F', 62)],
+        'C': [('A', 55), ('B', 60), ('D', 43), ('G', 250), ('H', 32), ('I', 170)],
+        'D': [('A', 45), ('C', 43), ('E', 90), ('I', 85), ('J', 40), ('K', 15)],
+        'E': [('A', 30), ('D', 90), ('K', 230)],
+        'F': [('B', 62), ('G', 25), ('L', 136)],
+        'G': [('B', 127), ('C', 250), ('F', 25), ('H', 32), ('I', 30), ('L', 58), ('M', 220)],
+        'H': [('C', 32), ('G', 32), ('I', 120), ('L', 61), ('M', 88), ('N', 20)],
+        'I': [('C', 170), ('D', 85), ('G', 30), ('H', 120), ('J', 61), ('N', 12), ('O', 23)],
+        'J': [('D', 40), ('I', 61), ('K', 32), ('O', 144), ('P', 147), ('S', 110)],
+        'K': [('D', 15), ('E', 230), ('J', 32), ('P', 130)],
+        'L': [('F', 136), ('G', 58), ('H', 61), ('M', 144), ('Q', 161)],
+        'M': [('G', 220), ('H', 88), ('L', 144), ('N', 24), ('Q', 71), ('R', 92)],
+        'N': [('H', 20), ('I', 12), ('M', 24), ('O', 40), ('R', 134), ('T', 156)],
+        'O': [('I', 23), ('J', 144), ('N', 40), ('P', 77), ('S', 16), ('T', 17)],
+        'P': [('J', 147), ('K', 130), ('O', 77), ('S', 89)],
+        'Q': [('L', 161), ('M', 71), ('R', 26)],
+        'R': [('M', 92), ('N', 134), ('Q', 26), ('T', 16)],
+        'S': [('J', 110), ('O', 16), ('P', 89), ('T', 72)],
+        'T': [('N', 156), ('O', 17), ('R', 16), ('S', 72)]
+    }
+    
+    Heuristic_Name_Dict = {}
+    
+    def __init__(self, Heuristic_Name):
+        self.Heuristic_Name_Dict = self.starter(Heuristic_Name)
+
+    def starter(self, Heuristic_Name):
+        self.keys = self.graph.keys()
+        return self.arrayfiller(Heuristic_Name, self.keys)
+
+        
+
+    def ucs(self, start, goal):
+        # Initialize priority queue with start node and cost 0
+        self.frontier = PriorityQueue()
+        self.frontier.put((0, start))
+    
+        # Initialize costs dictionary with start node
+        self.costs = {node: float('inf') for node in self.graph}
+        self.costs[start] = 0
+    
+        # Initialize parent dictionary
+        self.parent = {start: None}
+    
+        while not self.frontier.empty():
+            # Get node from priority queue with lowest cost
+            self.current_cost, self.current_node = self.frontier.get()
+        
+            # If current node is the goal, reconstruct path and return
+            if self.current_node == goal:
+                self.path = []
+                while self.current_node is not None:
+                    self.path.append(self.current_node)
+                    self.current_node = self.parent[self.current_node]
+                self.path.reverse()
+                return self.path, self.costs[goal]
+        
+            # Explore neighbors of current node
+            for self.neighbor, self.cost in self.graph[self.current_node]:
+                self.new_cost = self.current_cost + self.cost
+                if self.new_cost < self.costs[self.neighbor]:
+                    self.costs[self.neighbor] = self.new_cost
+                    self.frontier.put((self.new_cost, self.neighbor))
+                    self.parent[self.neighbor] = self.current_node
+    
+        # If goal node not found, return None
+        return None
+
+    def arrayfiller(self, from_H, keys):
+        self.pop_dict = {}
+        self.pop_dict2 = {}
+    
+        for i in keys:
+            if from_H != i:
+                self.path, self.cost = self.ucs(i, from_H)
+                self.pop_dict[i] = (self.cost/100)*90
+                self.pop_dict2[i] = self.path    
+            
+            else:
+                self.pop_dict[i] = 0
+                self.pop_dict2[i] = {}
+        print(self.pop_dict)                
+                    
+    
+        return self.pop_dict
+
+
+
+
+
